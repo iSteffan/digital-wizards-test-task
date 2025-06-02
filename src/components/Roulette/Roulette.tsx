@@ -9,14 +9,22 @@ const VISIBLE_CARDS = 11;
 const TOTAL_CARDS = 30;
 const STEP = CARD_WIDTH + CARD_MARGIN;
 
+type Card = {
+  id: number;
+  label: number;
+};
+
 export default function Roulette() {
   const controls = useAnimation();
-  const [cards, setCards] = useState(Array.from({ length: TOTAL_CARDS }, (_, i) => i));
+  const [cards, setCards] = useState<Card[]>(
+    Array.from({ length: TOTAL_CARDS }, (_, i) => ({ id: i, label: i + 1 }))
+  );
+
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   const positionRef = useRef(0);
   const speedRef = useRef(0);
   const isRunningRef = useRef(false);
-
   const containerRef = useRef<HTMLDivElement>(null);
 
   const centerNearestCard = async () => {
@@ -24,7 +32,6 @@ export default function Roulette() {
 
     const containerWidth = containerRef.current.offsetWidth;
     const containerCenter = containerWidth / 2;
-
     const pos = positionRef.current;
 
     const cardPositions = cards.map((_, index) => index * STEP - pos);
@@ -41,7 +48,6 @@ export default function Roulette() {
     }
 
     const desiredCardCenterPos = nearestIndex * STEP;
-
     const newPosition = desiredCardCenterPos - (containerCenter - CARD_WIDTH / 2);
 
     await controls.start({
@@ -53,6 +59,7 @@ export default function Roulette() {
         mass: 1,
       },
     });
+
     positionRef.current = newPosition;
 
     const cardsShifted = Math.floor(newPosition / STEP);
@@ -64,6 +71,9 @@ export default function Roulette() {
       positionRef.current = newPosition - cardsShifted * STEP;
       controls.set({ x: -positionRef.current });
     }
+
+    setActiveIndex(nearestIndex);
+    setTimeout(() => setActiveIndex(null), 1500);
   };
 
   useEffect(() => {
@@ -132,60 +142,39 @@ export default function Roulette() {
       await centerNearestCard();
 
       await new Promise(r => setTimeout(r, 5000));
-
       runAnimation();
     };
 
     animationFrameId = requestAnimationFrame(animate);
     runAnimation();
 
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-    };
+    return () => cancelAnimationFrame(animationFrameId);
   }, [controls]);
+
+  const BUFFER = 3;
+  const visibleCards = cards.slice(0, VISIBLE_CARDS + BUFFER * 2);
 
   return (
     <div
       ref={containerRef}
+      className="mx-auto mt-24 relative overflow-hidden"
       style={{
         width: STEP * VISIBLE_CARDS - CARD_MARGIN,
-        overflow: 'hidden',
-        margin: '100px auto',
-        // border: '1px solid #fff',
-        // borderRadius: 10,
-        userSelect: 'none',
-        position: 'relative',
-        height: 100,
-        background: '#111',
+        height: 200,
       }}
     >
-      <motion.div
-        animate={controls}
-        style={{
-          display: 'flex',
-          gap: CARD_MARGIN,
-        }}
-      >
-        {cards.map(card => (
-          <div
-            key={card}
-            style={{
-              minWidth: CARD_WIDTH,
-              height: 100,
-              background: '#4c6ef5',
-              borderRadius: 12,
-              color: 'white',
-              fontWeight: 'bold',
-              fontSize: 28,
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              boxShadow: '0 0 8px #1c7ed6',
-              userSelect: 'none',
+      <motion.div animate={controls} className="flex mt-[50px] gap-[10px]">
+        {visibleCards.map((card, index) => (
+          <motion.div
+            key={card.id}
+            animate={{
+              scale: activeIndex === index ? 1.5 : 1,
             }}
+            transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+            className="min-w-[100px] h-[100px] bg-blue-600 rounded-xl text-white font-bold text-[28px] flex items-center justify-center shadow-[0_0_8px_#1c7ed6] select-none"
           >
-            {card + 1}
-          </div>
+            {card.label}
+          </motion.div>
         ))}
       </motion.div>
     </div>

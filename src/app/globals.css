@@ -23,3 +23,30 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+.roulette-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.roulette-container::before,
+.roulette-container::after {
+  content: '';
+  position: absolute;
+  top: 50%; /* по центру по вертикалі */
+  transform: translateY(-50%); /* зсув вверх на половину висоти */
+  width: 50px;
+  height: 100px; /* висота затемнення */
+  pointer-events: none;
+  z-index: 10;
+}
+
+.roulette-container::before {
+  left: 0;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.5), transparent);
+}
+
+.roulette-container::after {
+  right: 0;
+  background: linear-gradient(to left, rgba(0, 0, 0, 0.5), transparent);
+}

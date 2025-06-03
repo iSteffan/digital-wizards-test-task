@@ -1,0 +1,18 @@
+{
+  "cards": [
+    { "id": 1, "img": "/icons/dark-card.svg", "chance": 1 },
+    { "id": 2, "img": "/icons/red-card.svg", "chance": 1 },
+    { "id": 3, "img": "/icons/dark-card.svg", "chance": 1 },
+    { "id": 4, "img": "/icons/green-card.svg", "chance": 19 },
+    { "id": 5, "img": "/icons/dark-card.svg", "chance": 1 },
+    { "id": 6, "img": "/icons/red-joker.svg", "chance": 35 },
+    { "id": 7, "img": "/icons/dark-card.svg", "chance": 1 },
+    { "id": 8, "img": "/icons/red-card.svg", "chance": 1 },
+    { "id": 9, "img": "/icons/dark-joker.svg", "chance": 35 },
+    { "id": 10, "img": "/icons/red-card.svg", "chance": 1 },
+    { "id": 11, "img": "/icons/dark-card.svg", "chance": 1 },
+    { "id": 12, "img": "/icons/red-card.svg", "chance": 1 },
+    { "id": 13, "img": "/icons/dark-card.svg", "chance": 1 },
+    { "id": 14, "img": "/icons/red-card.svg", "chance": 1 }
+  ]
+}

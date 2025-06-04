@@ -1,4 +1,3 @@
-// -----------------------------------------------------------------картка вірна але анімація дотягує до неї повільно
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -27,93 +26,156 @@ function pickWinnerCardIndex(cards: Card[]): number {
 
 export default function Roulette() {
   const controls = useAnimation();
-  const [cards] = useState<Card[]>(cardsData.cards.map((card, i) => ({ ...card, id: i })));
+
+  const [cards] = useState<Card[]>(cardsData.cards);
+
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-  const cardsToRender = [...cards, ...cards, ...cards]; // тричі для буфера
-  const totalLength = cards.length * STEP;
+  const cardsToRender = [...cards, ...cards];
 
   const positionRef = useRef(0);
   const speedRef = useRef(0);
   const isRunningRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const winnerIndexRef = useRef<number>(0);
 
-  const animateToWinner = async (winnerIndex: number) => {
+  const totalLength = cards.length * STEP;
+
+  const centerNearestCard = async () => {
     if (!containerRef.current) return;
 
     const containerCenter = containerRef.current.offsetWidth / 2;
-    const visibleCardsOffset = Math.floor(cardsToRender.length / 3);
+    let pos = positionRef.current % totalLength;
 
-    const targetIndex = visibleCardsOffset + winnerIndex;
-    const desiredCenter = targetIndex * STEP;
-    const finalPosition = desiredCenter - (containerCenter - CARD_WIDTH / 2);
+    if (pos < 0) pos += totalLength;
+
+    const cardCenters = cardsToRender.map((_, i) => i * STEP - pos + CARD_WIDTH / 2);
+
+    let nearestIndex = 0;
+    let minDistance = Infinity;
+
+    for (let i = 0; i < cardCenters.length; i++) {
+      const dist = Math.abs(cardCenters[i] - containerCenter);
+      if (dist < minDistance) {
+        minDistance = dist;
+        nearestIndex = i;
+      }
+    }
+
+    const desiredCenter = nearestIndex * STEP;
+    const newPosition = desiredCenter - (containerCenter - CARD_WIDTH / 2);
 
     await controls.start({
-      x: -finalPosition,
-      transition: { duration: 2, ease: 'easeOut' },
+      x: -newPosition,
+      transition: { type: 'spring', stiffness: 120, damping: 20, mass: 1 },
     });
 
-    positionRef.current = finalPosition;
+    positionRef.current = newPosition;
 
-    const actualCenterIndex = Math.round((finalPosition + containerCenter - CARD_WIDTH / 2) / STEP);
-    const actualCard = cardsToRender[actualCenterIndex];
-    const actualCardIndexInOriginal = actualCard.id;
+    setActiveIndex(nearestIndex);
 
-    const distance = Math.abs(actualCardIndexInOriginal - winnerIndex);
-    console.log('Відстань між фактичною центральною карткою та виграшною:', distance);
-    console.log('Фактична центральна картка:', actualCard);
-    console.log('Очікувана виграшна картка:', cards[winnerIndex]);
+    const winnerCard = cardsToRender[nearestIndex % cards.length];
+    console.log('Фактична Виграшна картка:', winnerCard);
 
-    setActiveIndex(actualCenterIndex);
     setTimeout(() => setActiveIndex(null), 1500);
   };
 
-  const accelerate = () =>
-    new Promise<void>(res => {
-      let start: number | null = null;
-      const anim = (time: number) => {
-        if (!start) start = time;
-        const elapsed = (time - start) / 1000;
-        speedRef.current = elapsed < 2 ? 3000 * (elapsed / 2) : 3000;
-        if (elapsed < 2) requestAnimationFrame(anim);
-        else res();
-      };
-      requestAnimationFrame(anim);
-    });
+  const calculateDistanceToWinner = (winnerIndex: number): number => {
+    if (!containerRef.current) return 0;
 
-  const decelerate = () =>
-    new Promise<void>(res => {
-      let start: number | null = null;
-      const anim = (time: number) => {
-        if (!start) start = time;
-        const elapsed = (time - start) / 1000;
-        speedRef.current = elapsed < 4 ? 3000 * (1 - elapsed / 4) : 0;
-        if (elapsed < 4) requestAnimationFrame(anim);
-        else {
-          isRunningRef.current = false;
-          res();
+    const containerCenter = containerRef.current.offsetWidth / 2;
+    const visibleCardsOffset = cards.length;
+    const targetIndex = visibleCardsOffset + winnerIndex;
+
+    const targetCardCenter = targetIndex * STEP + CARD_WIDTH / 2;
+    const currentScroll = positionRef.current;
+    const currentCenter = currentScroll + containerCenter;
+
+    const distance = targetCardCenter - currentCenter + 3080;
+
+    console.log('Поточна позиція:', currentScroll.toFixed(2));
+    console.log('Центр контейнера:', containerCenter.toFixed(2));
+    console.log('Центр виграшної картки:', targetCardCenter.toFixed(2));
+    console.log('Відстань до виграшної картки:', distance.toFixed(2));
+
+    return distance;
+  };
+
+  const accelerate = async (targetSpeed: number): Promise<number> => {
+    return new Promise(resolve => {
+      let traveled = 0;
+      let speed = 0;
+      const accel = 3000;
+
+      const step = () => {
+        const delta = 1 / 60;
+        speed = Math.min(speed + accel * delta, targetSpeed);
+        const move = speed * delta;
+        traveled += move;
+        speedRef.current = speed;
+
+        if (speed < targetSpeed) {
+          requestAnimationFrame(step);
+        } else {
+          console.log('Accelerate phase complete. Traveled:', traveled.toFixed(2), 'px');
+          resolve(traveled);
         }
       };
-      requestAnimationFrame(anim);
+
+      requestAnimationFrame(step);
     });
+  };
+
+  const decelerate = (targetDistance: number): Promise<void> => {
+    return new Promise(resolve => {
+      const decel = 2000; // px/s^2
+      let traveled = 0;
+
+      let speed = Math.sqrt(2 * decel * targetDistance);
+      speedRef.current = speed;
+
+      const step = () => {
+        const delta = 1 / 60;
+
+        if (traveled >= targetDistance || speed <= 0) {
+          isRunningRef.current = false;
+          console.log('Decelerate phase complete. Traveled:', traveled.toFixed(2), 'px');
+          resolve();
+          return;
+        }
+
+        const move = speed * delta;
+        traveled += move;
+
+        speed = Math.max(speed - decel * delta, 0);
+        speedRef.current = speed;
+        requestAnimationFrame(step);
+      };
+
+      requestAnimationFrame(step);
+    });
+  };
 
   const startLoop = async () => {
     isRunningRef.current = true;
-    const winnerIndex = pickWinnerCardIndex(cards);
-    winnerIndexRef.current = winnerIndex;
 
+    const winnerIndex = pickWinnerCardIndex(cards);
     console.log('Обрана виграшна картка:', cards[winnerIndex]);
 
-    await accelerate();
-    await new Promise(r => setTimeout(r, 2000));
-    await decelerate();
-    await animateToWinner(winnerIndex);
+    const totalDistance = calculateDistanceToWinner(winnerIndex);
 
-    await new Promise(r => setTimeout(r, 5000));
+    const maxSpeed = 2500;
+    const accelDistance = await accelerate(maxSpeed);
+    const remainingDistance = totalDistance - accelDistance;
+
+    console.log('Очікувана повна відстань:', totalDistance.toFixed(2));
+    console.log('Прискорення пройшло:', accelDistance.toFixed(2));
+    console.log('Гальмування має пройти:', remainingDistance.toFixed(2));
+
+    await decelerate(remainingDistance);
+    await centerNearestCard();
+    await new Promise(r => setTimeout(r, 15000));
     startLoop();
   };
-
   useEffect(() => {
     let lastTimestamp: number | null = null;
 
@@ -147,7 +209,9 @@ export default function Roulette() {
     <div
       ref={containerRef}
       className="roulette-container mx-auto w-[1280px] relative overflow-hidden"
-      style={{ height: 200 }}
+      style={{
+        height: 200,
+      }}
     >
       <motion.div animate={controls} className="flex mt-[50px] gap-[10px]">
         {cardsToRender.map((card, index) => (

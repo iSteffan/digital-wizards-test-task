@@ -1,6 +1,8 @@
 // import Image from 'next/image';
 
-import Roulette from '@/components/Roulette/Roulette';
+import { Roulette } from '@/components/Roulette';
+
+// import Roulette from '@/components/Roulette/Roulette';
 
 // export default function Home() {
 //   return (

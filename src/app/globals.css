@@ -33,10 +33,10 @@ body {
 .roulette-container::after {
   content: '';
   position: absolute;
-  top: 50%; /* по центру по вертикалі */
-  transform: translateY(-50%); /* зсув вверх на половину висоти */
+  top: 50%;
+  transform: translateY(-50%);
   width: 50px;
-  height: 100px; /* висота затемнення */
+  height: 100px;
   pointer-events: none;
   z-index: 10;
 }
@@ -49,4 +49,12 @@ body {
 .roulette-container::after {
   right: 0;
   background: linear-gradient(to left, rgba(0, 0, 0, 0.5), transparent);
+}
+
+.text-responsive {
+  @apply text-[10px] md:text-[16px] xl:text-[18px];
+}
+
+.stat-card-responsive {
+  @apply w-[20px] h-[20px] md:w-[32px] md:h-[32px];
 }

@@ -14,7 +14,7 @@ import { Roulette } from '@/components/Roulette';
 
 export default function Home() {
   return (
-    <section className="min-h-screen">
+    <section>
       <Roulette />
     </section>
   );

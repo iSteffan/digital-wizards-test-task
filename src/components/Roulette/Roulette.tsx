@@ -10,11 +10,14 @@ import { RouletteCard } from '@/components/RouletteCard';
 
 import { pickWinnerCardIndex } from '@/utils/pickWinner';
 import { getInitialWinStats } from '@/utils/stats';
+import { calculateDistanceToWinner } from '@/utils/calculateDistanceToWinner';
 
 import cardsData from '@/data/cardData.json';
 import common from '@/data/common.json';
 
 import { Card } from './types';
+import { accelerate, decelerate } from '@/utils/movement';
+import { startCountdown } from '@/utils/timers';
 
 const CARD_WIDTH = 100;
 const CARD_MARGIN = 10;
@@ -28,10 +31,8 @@ export const Roulette = () => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [winnersHistory, setWinnersHistory] = useState<Card[]>([]);
   const [winStats, setWinStats] = useState(() => getInitialWinStats(cards));
-
   const [selectedWinner, setSelectedWinner] = useState<Card | null>(null);
   const [actualWinner, setActualWinner] = useState<Card | null>(null);
-
   const [countdown, setCountdown] = useState<number | null>(null);
 
   const cardsToRender = [...cards, ...cards];
@@ -39,26 +40,9 @@ export const Roulette = () => {
   const speedRef = useRef(0);
   const isRunningRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isFirstRunRef = useRef(true);
+
   const totalLength = cards.length * STEP;
-
-  const startCountdown = (duration: number, onComplete: () => void) => {
-    const end = performance.now() + duration * 1000;
-
-    const updateCountdown = () => {
-      const now = performance.now();
-      const remainingSec = (end - now) / 1000;
-
-      if (remainingSec > 0) {
-        setCountdown(parseFloat(remainingSec.toFixed(2)));
-        requestAnimationFrame(updateCountdown);
-      } else {
-        setCountdown(null);
-        onComplete();
-      }
-    };
-
-    requestAnimationFrame(updateCountdown);
-  };
 
   const centerNearestCard = async () => {
     if (!containerRef.current) return;
@@ -105,77 +89,9 @@ export const Roulette = () => {
       setActiveIndex(null);
 
       setTimeout(() => {
-        startCountdown(10, startLoop);
+        startCountdown(10, setCountdown, startLoop); // в перший параметр передаємо інтервал між обертаннями
       }, 1000);
     }, 1500);
-  };
-
-  const calculateDistanceToWinner = (winnerIndex: number): number => {
-    if (!containerRef.current) return 0;
-    const containerCenter = containerRef.current.offsetWidth / 2;
-    const visibleCardsOffset = cards.length;
-    const targetIndex = visibleCardsOffset + winnerIndex;
-
-    const targetCardCenter = targetIndex * STEP + CARD_WIDTH / 2;
-    const currentScroll = positionRef.current;
-    const currentCenter = currentScroll + containerCenter;
-    const distance = targetCardCenter - currentCenter + 6160;
-
-    return distance;
-  };
-
-  const accelerate = async (targetSpeed: number): Promise<number> => {
-    return new Promise(resolve => {
-      let traveled = 0;
-      let speed = 0;
-      const accel = 3000;
-
-      const step = () => {
-        const delta = 1 / 60;
-        speed = Math.min(speed + accel * delta, targetSpeed);
-        const move = speed * delta;
-        traveled += move;
-        speedRef.current = speed;
-
-        if (speed < targetSpeed) {
-          requestAnimationFrame(step);
-        } else {
-          resolve(traveled);
-        }
-      };
-
-      requestAnimationFrame(step);
-    });
-  };
-
-  const decelerate = (targetDistance: number): Promise<void> => {
-    return new Promise(resolve => {
-      const decel = 2000;
-      let traveled = 0;
-      const offsetError = (Math.random() - 0.5) * 50;
-      const adjustedDistance = targetDistance + offsetError;
-
-      let speed = Math.sqrt(2 * decel * adjustedDistance);
-      speedRef.current = speed;
-
-      const step = () => {
-        const delta = 1 / 60;
-        if ((traveled >= adjustedDistance && speed <= 0) || speed <= 0) {
-          isRunningRef.current = false;
-          resolve();
-          return;
-        }
-
-        const move = speed * delta;
-        traveled += move;
-        speed = Math.max(speed - decel * delta, 0);
-        speedRef.current = speed;
-
-        requestAnimationFrame(step);
-      };
-
-      requestAnimationFrame(step);
-    });
   };
 
   const startLoop = async () => {
@@ -183,13 +99,17 @@ export const Roulette = () => {
     const winnerIndex = pickWinnerCardIndex(cards);
     setSelectedWinner(cards[winnerIndex]);
 
-    const totalDistance = calculateDistanceToWinner(winnerIndex);
+    const totalDistance = calculateDistanceToWinner(containerRef, cards, winnerIndex, positionRef);
 
     const maxSpeed = 2500;
-    const accelDistance = await accelerate(maxSpeed);
+    const accelDistance = await accelerate(speedRef, maxSpeed);
+
     const remainingDistance = totalDistance - accelDistance;
 
-    await decelerate(remainingDistance);
+    await decelerate(remainingDistance, speedRef, isFirstRunRef.current);
+
+    isFirstRunRef.current = false;
+
     await centerNearestCard();
   };
 
@@ -240,7 +160,8 @@ export const Roulette = () => {
         </div>
 
         {/* Таймер зверху поверх карток */}
-        {countdown !== null && (
+        {/* {countdown !== null && ( */}
+        {countdown !== null && countdown > 0 && (
           <div className="absolute text-center w-[100px] h-[100px] top-[50px] left-1/2 -translate-x-1/2 text-white z-20 bg-black/60 px-[8px] py-[26px] select-none">
             <p className="text-[14px] leading-[1.42]">{rolling}</p>
             <p className="text-[20px] leading-[1.4] font-bold">{countdown.toFixed(2)}</p>

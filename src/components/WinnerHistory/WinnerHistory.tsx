@@ -1,4 +1,5 @@
 import Image from 'next/image';
+
 import { Card } from '@/components/Roulette/types';
 
 type Props = { winners: Card[] };

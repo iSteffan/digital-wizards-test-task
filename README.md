@@ -65,6 +65,8 @@ This project implements a **roulette** game with the following features and flow
 This structured flow ensures a smooth user experience and clear visualization of the game state at
 every stage.
 
+---
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with
 [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 

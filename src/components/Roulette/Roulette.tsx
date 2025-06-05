@@ -8,16 +8,19 @@ import { WinnerHistory } from '@/components/WinnerHistory';
 import { WinnerDisplay } from '@/components/TestWinnerDisplay';
 import { RouletteCard } from '@/components/RouletteCard';
 
-import { pickWinnerCardIndex } from '@/utils/pickWinner';
-import { getInitialWinStats } from '@/utils/stats';
-import { calculateDistanceToWinner } from '@/utils/calculateDistanceToWinner';
+import {
+  pickWinnerCardIndex,
+  getInitialWinStats,
+  calculateDistanceToWinner,
+  accelerate,
+  decelerate,
+  startCountdown,
+} from '@/utils';
 
 import cardsData from '@/data/cardData.json';
 import common from '@/data/common.json';
 
 import { Card } from './types';
-import { accelerate, decelerate } from '@/utils/movement';
-import { startCountdown } from '@/utils/timers';
 
 const CARD_WIDTH = 100;
 const CARD_MARGIN = 10;
@@ -160,7 +163,6 @@ export const Roulette = () => {
         </div>
 
         {/* Таймер зверху поверх карток */}
-        {/* {countdown !== null && ( */}
         {countdown !== null && countdown > 0 && (
           <div className="absolute text-center w-[100px] h-[100px] top-[50px] left-1/2 -translate-x-1/2 text-white z-20 bg-black/60 px-[8px] py-[26px] select-none">
             <p className="text-[14px] leading-[1.42]">{rolling}</p>

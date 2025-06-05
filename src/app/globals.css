@@ -12,11 +12,6 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-
-  --color-red-card: #ff4242;
-  --color-dark-card: #343843;
-  --color-green-card: #47ff69;
-  --color-dark-bg: #151619;
 }
 
 body {

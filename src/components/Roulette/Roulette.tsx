@@ -12,6 +12,7 @@ import { pickWinnerCardIndex } from '@/utils/pickWinner';
 import { getInitialWinStats } from '@/utils/stats';
 
 import cardsData from '@/data/cardData.json';
+import common from '@/data/common.json';
 
 import { Card } from './types';
 
@@ -20,6 +21,8 @@ const CARD_MARGIN = 10;
 const STEP = CARD_WIDTH + CARD_MARGIN;
 
 export const Roulette = () => {
+  const { rolling } = common;
+
   const controls = useAnimation();
   const [cards] = useState<Card[]>(cardsData.cards);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -28,6 +31,8 @@ export const Roulette = () => {
 
   const [selectedWinner, setSelectedWinner] = useState<Card | null>(null);
   const [actualWinner, setActualWinner] = useState<Card | null>(null);
+
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   const cardsToRender = [...cards, ...cards];
   const positionRef = useRef(0);
@@ -67,10 +72,8 @@ export const Roulette = () => {
     setActiveIndex(nearestIndex);
 
     const winnerCard = cardsToRender[nearestIndex % cards.length];
-    // console.log('Фактична Виграшна картка:', winnerCard);
     setActualWinner(winnerCard);
     setWinnersHistory(prev => [winnerCard, ...prev].slice(0, 10));
-
     setWinStats(prev => ({
       ...prev,
       [winnerCard.img]: {
@@ -81,8 +84,26 @@ export const Roulette = () => {
 
     setTimeout(() => {
       setActiveIndex(null);
-      setActualWinner(null);
-      setSelectedWinner(null);
+
+      setTimeout(() => {
+        const countdownDuration = 10;
+        const end = performance.now() + countdownDuration * 1000;
+
+        const updateCountdown = () => {
+          const now = performance.now();
+          const remainingSec = (end - now) / 1000;
+
+          if (remainingSec > 0) {
+            setCountdown(parseFloat(remainingSec.toFixed(2)));
+            requestAnimationFrame(updateCountdown);
+          } else {
+            setCountdown(null);
+            startLoop();
+          }
+        };
+
+        requestAnimationFrame(updateCountdown);
+      }, 1000);
     }, 1500);
   };
 
@@ -95,7 +116,7 @@ export const Roulette = () => {
     const targetCardCenter = targetIndex * STEP + CARD_WIDTH / 2;
     const currentScroll = positionRef.current;
     const currentCenter = currentScroll + containerCenter;
-    const distance = targetCardCenter - currentCenter + 3080;
+    const distance = targetCardCenter - currentCenter + 6160;
 
     return distance;
   };
@@ -128,7 +149,7 @@ export const Roulette = () => {
     return new Promise(resolve => {
       const decel = 2000;
       let traveled = 0;
-      const offsetError = (Math.random() - 0.5) * 60;
+      const offsetError = (Math.random() - 0.5) * 50;
       const adjustedDistance = targetDistance + offsetError;
 
       let speed = Math.sqrt(2 * decel * adjustedDistance);
@@ -157,7 +178,6 @@ export const Roulette = () => {
   const startLoop = async () => {
     isRunningRef.current = true;
     const winnerIndex = pickWinnerCardIndex(cards);
-    // console.log('Обрана виграшна картка:', cards[winnerIndex]);
     setSelectedWinner(cards[winnerIndex]);
 
     const totalDistance = calculateDistanceToWinner(winnerIndex);
@@ -168,8 +188,6 @@ export const Roulette = () => {
 
     await decelerate(remainingDistance);
     await centerNearestCard();
-    await new Promise(r => setTimeout(r, 5000));
-    startLoop();
   };
 
   useEffect(() => {
@@ -202,7 +220,7 @@ export const Roulette = () => {
   }, [controls]);
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center relative">
       <div className="flex xl:flex-row flex-col w-[300px] md:w-[700px] xl:w-[1280px] gap-[20px] xl:gap-0 justify-center xl:justify-between py-[32px]">
         <WinnerHistory winners={winnersHistory} />
         <WinStats stats={winStats} />
@@ -218,23 +236,41 @@ export const Roulette = () => {
           <div className="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[16px] border-t-red-600" />
         </div>
 
+        {/* Таймер зверху поверх карток */}
+        {countdown !== null && (
+          <div className="absolute text-center w-[100px] h-[100px] top-[50px] left-1/2 -translate-x-1/2 text-white z-20 bg-black/60 px-[8px] py-[26px] select-none">
+            <p className="text-[14px] leading-[1.42]">{rolling}</p>
+            <p className="text-[20px] leading-[1.4] font-bold">{countdown.toFixed(2)}</p>
+          </div>
+        )}
+
         <motion.div animate={controls} className="flex mt-[50px] gap-[10px]">
-          {cardsToRender.map((card, index) => (
-            <motion.div
-              key={index}
-              animate={{ scale: activeIndex === index ? 1.5 : 1 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-              className="min-w-[100px] h-[100px] rounded-xl flex items-center justify-center shadow-[0_0_8px_#1c7ed6] select-none"
-            >
-              <Image
-                src={card.img}
-                alt={`Card ${card.id}`}
-                width={100}
-                height={100}
-                className="w-[100px] h-[100px]"
-              />
-            </motion.div>
-          ))}
+          {cardsToRender.map((card, index) => {
+            const isActive = activeIndex === index;
+
+            return (
+              <motion.div
+                key={index}
+                animate={{ scale: isActive ? 1.2 : 1 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                className="min-w-[100px] h-[100px] rounded-xl flex items-center justify-center select-none"
+                style={{
+                  filter: activeIndex !== null && !isActive ? 'brightness(0.5)' : 'none',
+                  zIndex: isActive ? 10 : 1,
+                  position: 'relative',
+                  transition: 'filter 0.3s ease',
+                }}
+              >
+                <Image
+                  src={card.img}
+                  alt={`Card ${card.id}`}
+                  width={100}
+                  height={100}
+                  className="w-[100px] h-[100px]"
+                />
+              </motion.div>
+            );
+          })}
         </motion.div>
       </div>
 

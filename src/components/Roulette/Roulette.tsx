@@ -2,11 +2,11 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, useAnimation } from 'framer-motion';
-import Image from 'next/image';
 
 import { WinStats } from '@/components/WinStats';
 import { WinnerHistory } from '@/components/WinnerHistory';
 import { WinnerDisplay } from '@/components/TestWinnerDisplay';
+import { RouletteCard } from '@/components/RouletteCard';
 
 import { pickWinnerCardIndex } from '@/utils/pickWinner';
 import { getInitialWinStats } from '@/utils/stats';
@@ -40,6 +40,25 @@ export const Roulette = () => {
   const isRunningRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const totalLength = cards.length * STEP;
+
+  const startCountdown = (duration: number, onComplete: () => void) => {
+    const end = performance.now() + duration * 1000;
+
+    const updateCountdown = () => {
+      const now = performance.now();
+      const remainingSec = (end - now) / 1000;
+
+      if (remainingSec > 0) {
+        setCountdown(parseFloat(remainingSec.toFixed(2)));
+        requestAnimationFrame(updateCountdown);
+      } else {
+        setCountdown(null);
+        onComplete();
+      }
+    };
+
+    requestAnimationFrame(updateCountdown);
+  };
 
   const centerNearestCard = async () => {
     if (!containerRef.current) return;
@@ -86,23 +105,7 @@ export const Roulette = () => {
       setActiveIndex(null);
 
       setTimeout(() => {
-        const countdownDuration = 10;
-        const end = performance.now() + countdownDuration * 1000;
-
-        const updateCountdown = () => {
-          const now = performance.now();
-          const remainingSec = (end - now) / 1000;
-
-          if (remainingSec > 0) {
-            setCountdown(parseFloat(remainingSec.toFixed(2)));
-            requestAnimationFrame(updateCountdown);
-          } else {
-            setCountdown(null);
-            startLoop();
-          }
-        };
-
-        requestAnimationFrame(updateCountdown);
+        startCountdown(10, startLoop);
       }, 1000);
     }, 1500);
   };
@@ -247,29 +250,9 @@ export const Roulette = () => {
         <motion.div animate={controls} className="flex mt-[50px] gap-[10px]">
           {cardsToRender.map((card, index) => {
             const isActive = activeIndex === index;
+            const isDimmed = activeIndex !== null && !isActive;
 
-            return (
-              <motion.div
-                key={index}
-                animate={{ scale: isActive ? 1.2 : 1 }}
-                transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-                className="min-w-[100px] h-[100px] rounded-xl flex items-center justify-center select-none"
-                style={{
-                  filter: activeIndex !== null && !isActive ? 'brightness(0.5)' : 'none',
-                  zIndex: isActive ? 10 : 1,
-                  position: 'relative',
-                  transition: 'filter 0.3s ease',
-                }}
-              >
-                <Image
-                  src={card.img}
-                  alt={`Card ${card.id}`}
-                  width={100}
-                  height={100}
-                  className="w-[100px] h-[100px]"
-                />
-              </motion.div>
-            );
+            return <RouletteCard key={index} card={card} isActive={isActive} isDimmed={isDimmed} />;
           })}
         </motion.div>
       </div>
